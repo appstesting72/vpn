@@ -1,0 +1,160 @@
+ boolean doubleBackToExitPressedOnce = false;
+
+    private static final String ADMOB_AD_UNIT_ID = "ca-app-pub-3940256099942544/2247696110";
+    private static final String ADMOB_APP_ID = "ca-app-pub-3940256099942544~3347511713";
+    private UnifiedNativeAd nativeAd;
+    private AdLoader adLoader;
+    private View contentView;
+
+    private Button nextButton;
+    private FrameLayout frameLayout;
+
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        contentView = getLayoutInflater().inflate(R.layout.activity_third, null);
+        setContentView(contentView);
+        setTitle("Third Screen");
+        MobileAds.initialize(this, ADMOB_APP_ID);
+        nextButton = findViewById(R.id.next_button);
+        nextButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                startActivity(new Intent(ThirdActivity.this, FourthActivity.class));
+            }
+        });
+        AdLoader.Builder builder = new AdLoader.Builder(this, ADMOB_AD_UNIT_ID);
+        builder.forUnifiedNativeAd(new UnifiedNativeAd.OnUnifiedNativeAdLoadedListener() {
+            // OnUnifiedNativeAdLoadedListener implementation.
+            @Override
+            public void onUnifiedNativeAdLoaded(UnifiedNativeAd unifiedNativeAd) {
+                // You must call destroy on old ads when you are done with them,
+                // otherwise you will have a memory leak.
+                if (nativeAd != null) {
+                    nativeAd.destroy();
+                }
+                nativeAd = unifiedNativeAd;
+            }
+
+        });
+
+        adLoader = builder.withAdListener(new AdListener() {
+
+            @Override
+            public void onAdLoaded() {
+                super.onAdLoaded();
+                Toast.makeText(ThirdActivity.this, "Ad Loaded", Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onAdFailedToLoad(int errorCode) {
+                // press the back
+            }
+
+        }).build();
+        adLoader.loadAd(new AdRequest.Builder().build());
+    }
+
+    @Override
+    public void onBackPressed() {
+        showAd();
+        if (doubleBackToExitPressedOnce) {
+            super.onBackPressed();
+            return;
+        }
+
+        this.doubleBackToExitPressedOnce = false;
+        Toast.makeText(this, "Only can Click Skip Button", Toast.LENGTH_SHORT).show();
+
+        new Handler().postDelayed(new Runnable() {
+
+            @Override
+            public void run() {
+                doubleBackToExitPressedOnce = false;
+            }
+        }, 2000);
+    }
+
+    private void showAd() {
+        ((ViewGroup) contentView.getParent()).removeView(contentView);
+        getSupportActionBar().hide();
+        this.getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        nextButton.setVisibility(View.GONE);
+        setContentView(contentView);
+        frameLayout =
+                findViewById(R.id.fl_adplaceholder);
+        UnifiedNativeAdView adView = (UnifiedNativeAdView) getLayoutInflater()
+                .inflate(R.layout.second_ad_layout, null);
+        populateUnifiedNativeAdView(nativeAd, adView);
+        frameLayout.removeAllViews();
+        frameLayout.addView(adView);
+    }
+
+    private void populateUnifiedNativeAdView(UnifiedNativeAd nativeAd, UnifiedNativeAdView adView) {
+        MediaView mediaView = adView.findViewById(R.id.ad_media);
+        adView.setMediaView(mediaView);
+        mediaView.setMediaContent(nativeAd.getMediaContent());
+
+
+        // Set other ad assets.
+        adView.setHeadlineView(adView.findViewById(R.id.ad_headline));
+        adView.setBodyView(adView.findViewById(R.id.ad_body));
+        adView.setIconView(adView.findViewById(R.id.ad_app_icon));
+        adView.setCallToActionView(adView.findViewById(R.id.ad_call_to_action));
+
+        TextView skipButton = adView.findViewById(R.id.ad_native_skip);
+//        adView.setClickConfirmingView(skipButton);
+
+        skipButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Log.i("TAG", "click");
+                frameLayout.setVisibility(View.GONE);
+                frameLayout.removeAllViews();
+                nextButton.setVisibility(View.VISIBLE);
+                getSupportActionBar().show();
+                ThirdActivity.this.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+            }
+        });
+
+
+        // The headline is guaranteed to be in every UnifiedNativeAd.
+        ((TextView) adView.getHeadlineView()).setText(nativeAd.getHeadline());
+
+        // These assets aren't guaranteed to be in every UnifiedNativeAd, so it's important to
+        // check before trying to display them.
+        if (nativeAd.getBody() == null) {
+            adView.getBodyView().setVisibility(View.INVISIBLE);
+        } else {
+            adView.getBodyView().setVisibility(View.VISIBLE);
+            ((TextView) adView.getBodyView()).setText(nativeAd.getBody());
+        }
+
+        if (nativeAd.getCallToAction() == null) {
+            adView.getCallToActionView().setVisibility(View.INVISIBLE);
+        } else {
+            adView.getCallToActionView().setVisibility(View.VISIBLE);
+            ((Button) adView.getCallToActionView()).setText(nativeAd.getCallToAction());
+        }
+
+        if (nativeAd.getIcon() == null) {
+            adView.getIconView().setVisibility(View.GONE);
+        } else {
+            ((ImageView) adView.getIconView()).setImageDrawable(
+                    nativeAd.getIcon().getDrawable());
+            adView.getIconView().setVisibility(View.VISIBLE);
+        }
+
+
+        adView.setNativeAd(nativeAd);
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (nativeAd != null) {
+            nativeAd.destroy();
+        }
+        super.onDestroy();
+    }
+}
